@@ -8,12 +8,12 @@
         body {
             font-family: 'Comic Sans MS', cursive, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin: 0; padding: 15px; text-align: center; color: white; min-height: 100vh;
+            margin: 0; padding: 15px; text-align: center; color: white; min-height: 100vh; overflow: hidden;
         }
         h1 { font-size: 2.2em; margin: 5px 0; }
         #stats { display: flex; justify-content: space-around; font-size: 1.2em; margin: 10px 0; }
         #stickers { font-size: 1.8em; min-height: 35px; }
-        #prompt { font-size: 1.6em; margin: 15px 0; min-height: 80px; }
+        #prompt { font-size: 1.6em; margin: 15px 0; min-height: 80px; font-weight: bold; }
         #picture { font-size: 6em; margin: 5px 0; }
         .letter-btn {
             font-size: 3.5em; width: 28vw; height: 28vw; max-width: 110px; max-height: 110px;
@@ -21,27 +21,28 @@
             color: #333; box-shadow: 0 6px 0 #ccc; cursor: pointer;
         }
         .letter-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #ccc; }
-        .controls { margin: 15px 0; }
-        .btn {
-            font-size: 1em; padding: 10px 15px; border-radius: 12px;
-            border: none; background: #ffd700; color: #333; margin: 5px; cursor: pointer; font-weight: bold;
-        }
-        .reset-btn { background: #ff4b2b; color: white; }
+        .btn { font-size: 1em; padding: 12px 20px; border-radius: 12px; border: none; background: #ffd700; color: #333; margin: 5px; cursor: pointer; font-weight: bold; }
+        .reset-btn { background: #ff4b2b; color: white; margin-top: 20px; }
         .correct { animation: bounce 0.5s; background: #90EE90 !important; }
         .wrong { animation: shake 0.5s; background: #FFB6C1 !important; }
         @keyframes bounce { 0%, 100%{ transform: scale(1)} 50%{ transform: scale(1.2)} }
         @keyframes shake { 0%, 100%{ transform: translateX(0)} 25%{ transform: translateX(-8px)} 75%{ transform: translateX(8px)} }
-        .confetti { position: fixed; width: 10px; height: 10px; animation: fall 1.5s linear forwards; pointer-events: none; }
+        .confetti { position: fixed; width: 10px; height: 10px; animation: fall 1.5s linear forwards; pointer-events: none; z-index: 100; }
         @keyframes fall { to { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+        @keyframes rise { to { transform: translateY(-120vh); } }
+        #minigame-overlay {
+            display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.9); z-index:9999; text-align:center; padding-top:40px; color:white;
+        }
     </style>
 </head>
 <body>
 
     <h1>🌟 Alpha Fun Pro 🌟</h1>
 
-    <audio id="bgm" src="https://soundhelix.com" loop></audio>
     <audio id="sfx-correct" src="https://google.com"></audio>
     <audio id="sfx-wrong" src="https://google.com"></audio>
+    <audio id="sfx-fanfare" src="https://google.com"></audio>
 
     <div id="stats">
         <div>Stickers: <span id="sticker-count">0</span></div>
@@ -54,15 +55,16 @@
         <div id="progress-fill" style="width:0%; height:100%; background:#ffd700; transition:0.4s;"></div>
     </div>
 
-    <div id="prompt">Tap Start to play!</div>
+    <div id="prompt">Ready to play?</div>
     <div id="picture"></div>
     <div id="letters"></div>
 
     <div class="controls">
         <button id="start-btn" class="btn" onclick="startGame()">Start Game</button>
-        <button id="music-btn" class="btn" onclick="toggleMusic()">Music On/Off</button>
-        <button class="btn reset-btn" onclick="resetProgress()">Reset Everything</button>
+        <button class="btn reset-btn" onclick="resetProgress()">Reset Game</button>
     </div>
+
+    <div id="minigame-overlay"></div>
 
     <script>
         const synth = window.speechSynthesis;
@@ -87,6 +89,7 @@
         function speak(text) {
             synth.cancel();
             const utter = new SpeechSynthesisUtterance(text);
+            utter.pitch = 1.2;
             synth.speak(utter);
         }
 
@@ -96,10 +99,8 @@
         }
 
         function nextQuestion() {
-            let currentAnswer = alphabet[Math.floor(Math.random() * alphabet.length)];
-            window.currentAnswer = currentAnswer;
-            
-            let options = [currentAnswer];
+            window.currentAnswer = alphabet[Math.floor(Math.random() * alphabet.length)];
+            let options = [window.currentAnswer];
             while(options.length < 3) {
                 let rand = alphabet[Math.floor(Math.random() * alphabet.length)];
                 if(!options.includes(rand)) options.push(rand);
@@ -107,8 +108,8 @@
             options.sort(() => Math.random() - 0.5);
 
             document.getElementById('prompt').innerText = 'Find the letter:';
-            document.getElementById('picture').innerText = pictures[currentAnswer];
-            speak(`Find the letter ${currentAnswer}`);
+            document.getElementById('picture').innerText = pictures[window.currentAnswer];
+            speak(`Find the letter ${window.currentAnswer}`);
 
             const lettersDiv = document.getElementById('letters');
             lettersDiv.innerHTML = '';
@@ -130,20 +131,82 @@
                 
                 if(totalCorrect % 10 === 0) {
                     level++;
-                    speak("Level Up! You got a sticker!");
+                    localStorage.setItem('alphaScore', score);
+                    localStorage.setItem('alphaTotal', totalCorrect);
+                    localStorage.setItem('alphaLevel', level);
+                    updateUI();
+                    setTimeout(startRandomMiniGame, 1000);
+                } else {
+                    localStorage.setItem('alphaScore', score);
+                    localStorage.setItem('alphaTotal', totalCorrect);
+                    updateUI();
+                    setTimeout(nextQuestion, 1500);
                 }
-                
-                localStorage.setItem('alphaScore', score);
-                localStorage.setItem('alphaTotal', totalCorrect);
-                localStorage.setItem('alphaLevel', level);
-                updateUI();
-                setTimeout(nextQuestion, 1500);
             } else {
                 btn.classList.add('wrong');
                 document.getElementById('sfx-wrong').play();
-                speak("Try again!");
+                speak("Oops! Try again!");
                 setTimeout(() => btn.classList.remove('wrong'), 500);
             }
+        }
+
+        function startRandomMiniGame() {
+            const overlay = document.getElementById('minigame-overlay');
+            overlay.style.display = 'block';
+            overlay.innerHTML = '<h2 style="font-size:2em; margin-top:20vh;">LEVEL UP! 🌟</h2>';
+            
+            speak("Level Up! Time for a mini-game!");
+            
+            setTimeout(() => {
+                const games = [startBalloonPop, startPictureMatch];
+                const game = games[Math.floor(Math.random() * games.length)];
+                game();
+            }, 2000);
+        }
+
+        function startBalloonPop() {
+            const overlay = document.getElementById('minigame-overlay');
+            overlay.innerHTML = '<h2>Pop the Balloon!</h2>';
+            const target = alphabet[Math.floor(Math.random() * alphabet.length)];
+            speak(`Pop the balloon with letter ${target}`);
+
+            for(let i=0; i<4; i++) {
+                const b = document.createElement('div');
+                const isTarget = i === 0;
+                b.innerText = isTarget ? target : alphabet[Math.floor(Math.random()*26)];
+                b.style.cssText = `position:absolute; bottom:-100px; left:${20+i*20}%; font-size:4em; cursor:pointer; animation:rise 5s linear forwards;`;
+                b.onclick = () => {
+                    if(b.innerText === target) {
+                        document.getElementById('sfx-fanfare').play();
+                        speak("Great job!");
+                        overlay.style.display = 'none';
+                        nextQuestion();
+                    }
+                };
+                overlay.appendChild(b);
+            }
+        }
+
+        function startPictureMatch() {
+            const overlay = document.getElementById('minigame-overlay');
+            overlay.innerHTML = '<h2>Find the Matching Picture!</h2>';
+            const target = alphabet[Math.floor(Math.random() * alphabet.length)];
+            speak(`Which picture starts with ${target}?`);
+
+            const choices = [target, alphabet[1], alphabet[2]]; 
+            choices.forEach(l => {
+                const d = document.createElement('div');
+                d.innerText = pictures[l];
+                d.style.cssText = "font-size:5em; display:inline-block; margin:20px; cursor:pointer;";
+                d.onclick = () => {
+                    if(l === target) {
+                        document.getElementById('sfx-fanfare').play();
+                        overlay.style.display = 'none';
+                        nextQuestion();
+                    }
+                };
+                overlay.appendChild(d);
+            });
         }
 
         function spawnConfetti() {
@@ -157,25 +220,8 @@
             }
         }
 
-        function toggleMusic() {
-            const bgm = document.getElementById('bgm');
-                    
-            
-            // Set volume to 30% so it's not too loud
-            bgm.volume = 0.3; 
-        
-            if (bgm.paused) {
-                // The .play() command now "catches" errors if the browser blocks it
-                bgm.play().catch(e => console.log("Click Start Game first to enable audio!"));
-                document.getElementById('music-btn').innerText = "Music: On 🎵";
-            } else {
-                bgm.pause();
-                document.getElementById('music-btn').innerText = "Music: Off 🔇";
-            }
-        }
-
         function resetProgress() {
-            if(confirm('Start from the very beginning?')) {
+            if(confirm('Reset all stickers and start over?')) {
                 localStorage.clear();
                 location.reload();
             }
