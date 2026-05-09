@@ -340,3 +340,130 @@ function resetProgress() {
 }
 
 loadProgress();
+/* ---------------------------------------------------------
+   MINI-GAMES SECTION
+--------------------------------------------------------- */
+
+/* 🎈 BALLOON POP MINI-GAME */
+function startBalloonPop() {
+  const overlay = document.getElementById('minigame-overlay');
+  overlay.innerHTML = '';
+  overlay.style.display = 'block';
+
+  const target = alphabet[Math.floor(Math.random()*alphabet.length)];
+  speak(`Pop the balloon with the letter ${target}`);
+
+  const title = document.createElement('div');
+  title.innerText = `Pop: ${target}`;
+  title.style.marginBottom = '20px';
+  overlay.appendChild(title);
+
+  for (let i = 0; i < 5; i++) {
+    const balloon = document.createElement('div');
+    balloon.innerText = alphabet[Math.floor(Math.random()*alphabet.length)];
+    balloon.style.cssText = `
+      position:absolute;
+      bottom:-120px;
+      left:${10 + i*18}%;
+      font-size:3em;
+      animation: rise 4s linear forwards;
+      cursor:pointer;
+    `;
+    balloon.onclick = () => {
+      if (balloon.innerText === target) {
+        document.getElementById('sfx-fanfare').play();
+        speak('Great popping!');
+        overlay.style.display = 'none';
+        setTimeout(nextQuestion, 800);
+      } else {
+        speak('Try again!');
+      }
+    };
+    overlay.appendChild(balloon);
+  }
+}
+
+/* 🖼 PICTURE MATCH MINI-GAME */
+function startPictureMatch() {
+  const overlay = document.getElementById('minigame-overlay');
+  overlay.innerHTML = '';
+  overlay.style.display = 'block';
+
+  const target = alphabet[Math.floor(Math.random()*alphabet.length)];
+  speak(`Which picture starts with ${target}?`);
+
+  const title = document.createElement('div');
+  title.innerText = `Find: ${target}`;
+  title.style.marginBottom = '20px';
+  overlay.appendChild(title);
+
+  const choices = [target];
+  while (choices.length < 3) {
+    let r = alphabet[Math.floor(Math.random()*alphabet.length)];
+    if (!choices.includes(r)) choices.push(r);
+  }
+  choices.sort(() => Math.random() - 0.5);
+
+  choices.forEach(letter => {
+    const btn = document.createElement('div');
+    btn.style.cssText = `
+      font-size:4em;
+      margin:20px;
+      cursor:pointer;
+    `;
+    btn.innerText = pictures[letter].split(' ')[0];
+    btn.onclick = () => {
+      if (letter === target) {
+        document.getElementById('sfx-fanfare').play();
+        speak('You got it!');
+        overlay.style.display = 'none';
+        setTimeout(nextQuestion, 800);
+      } else {
+        speak('Try again!');
+      }
+    };
+    overlay.appendChild(btn);
+  });
+}
+
+/* 🚀 ROCKET BOOST MINI-GAME */
+function startRocketBoost() {
+  const overlay = document.getElementById('minigame-overlay');
+  overlay.innerHTML = '';
+  overlay.style.display = 'block';
+
+  speak('Boost the rocket! Tap it!');
+
+  const rocket = document.createElement('div');
+  rocket.innerText = '🚀';
+  rocket.style.cssText = `
+    font-size:6em;
+    position:absolute;
+    bottom:20px;
+    left:45%;
+    transition:0.3s;
+    cursor:pointer;
+  `;
+  overlay.appendChild(rocket);
+
+  let height = 20;
+
+  rocket.onclick = () => {
+    height += 20;
+    rocket.style.bottom = height + 'px';
+
+    if (height > 350) {
+      document.getElementById('sfx-fanfare').play();
+      speak('Blast off!');
+      overlay.style.display = 'none';
+      setTimeout(nextQuestion, 800);
+    }
+  };
+}
+
+/* 🎮 RANDOM MINI-GAME SELECTOR */
+function startRandomMiniGame() {
+  const games = [startBalloonPop, startPictureMatch, startRocketBoost];
+  const game = games[Math.floor(Math.random()*games.length)];
+  game();
+}
