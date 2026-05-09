@@ -159,7 +159,19 @@
 
         function toggleMusic() {
             const bgm = document.getElementById('bgm');
-            bgm.paused ? bgm.play() : bgm.pause();
+                    
+            
+            // Set volume to 30% so it's not too loud
+            bgm.volume = 0.3; 
+        
+            if (bgm.paused) {
+                // The .play() command now "catches" errors if the browser blocks it
+                bgm.play().catch(e => console.log("Click Start Game first to enable audio!"));
+                document.getElementById('music-btn').innerText = "Music: On 🎵";
+            } else {
+                bgm.pause();
+                document.getElementById('music-btn').innerText = "Music: Off 🔇";
+            }
         }
 
         function resetProgress() {
