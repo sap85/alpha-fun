@@ -9,49 +9,39 @@
             font-family: 'Comic Sans MS', cursive, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             margin: 0; padding: 15px; text-align: center; color: white; min-height: 100vh;
-            overflow-x: hidden;
         }
-        h1 { font-size: 2.2em; margin: 5px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        h1 { font-size: 2.2em; margin: 5px 0; }
         #stats { display: flex; justify-content: space-around; font-size: 1.2em; margin: 10px 0; }
         #stickers { font-size: 1.8em; min-height: 35px; }
-        #prompt { font-size: 1.6em; margin: 15px 0; min-height: 80px; font-weight: bold; }
-        #picture { font-size: 6em; margin: 5px 0; transition: transform 0.3s; }
+        #prompt { font-size: 1.6em; margin: 15px 0; min-height: 80px; }
+        #picture { font-size: 6em; margin: 5px 0; }
         .letter-btn {
             font-size: 3.5em; width: 28vw; height: 28vw; max-width: 110px; max-height: 110px;
             margin: 8px; border: none; border-radius: 20px; background: white;
-            color: #333; box-shadow: 0 6px 0 #ccc; cursor: pointer; transition: 0.1s;
+            color: #333; box-shadow: 0 6px 0 #ccc; cursor: pointer;
         }
         .letter-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #ccc; }
         .controls { margin: 15px 0; }
-        .toggle-btn, #parent-btn, #reset-btn, #music-btn {
+        .btn {
             font-size: 1em; padding: 10px 15px; border-radius: 12px;
             border: none; background: #ffd700; color: #333; margin: 5px; cursor: pointer; font-weight: bold;
         }
-        #parent-dashboard {
-            display: none; background: rgba(0, 0, 0, 0.5); padding: 15px;
-            border-radius: 15px; margin-top: 15px; text-align: left;
-        }
+        .reset-btn { background: #ff4b2b; color: white; }
         .correct { animation: bounce 0.5s; background: #90EE90 !important; }
         .wrong { animation: shake 0.5s; background: #FFB6C1 !important; }
         @keyframes bounce { 0%, 100%{ transform: scale(1)} 50%{ transform: scale(1.2)} }
         @keyframes shake { 0%, 100%{ transform: translateX(0)} 25%{ transform: translateX(-8px)} 75%{ transform: translateX(8px)} }
-        .confetti {
-            position: fixed; width: 10px; height: 10px; background: yellow;
-            animation: fall 1.5s linear forwards; pointer-events: none;
-        }
+        .confetti { position: fixed; width: 10px; height: 10px; animation: fall 1.5s linear forwards; pointer-events: none; }
         @keyframes fall { to { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
-        @keyframes rise { to { transform: translateY(-120vh); } }
     </style>
 </head>
 <body>
 
     <h1>🌟 Alpha Fun Pro 🌟</h1>
 
-    <!-- Fixed Audio Placeholders: Using open-source library links for stability -->
     <audio id="bgm" src="https://soundhelix.com" loop></audio>
     <audio id="sfx-correct" src="https://google.com"></audio>
     <audio id="sfx-wrong" src="https://google.com"></audio>
-    <audio id="sfx-fanfare" src="https://google.com"></audio>
 
     <div id="stats">
         <div>Stickers: <span id="sticker-count">0</span></div>
@@ -64,120 +54,51 @@
         <div id="progress-fill" style="width:0%; height:100%; background:#ffd700; transition:0.4s;"></div>
     </div>
 
-    <div id="prompt">Ready to learn? <br> Tap Start!</div>
+    <div id="prompt">Tap Start to play!</div>
     <div id="picture"></div>
     <div id="letters"></div>
 
     <div class="controls">
-        <button id="start-btn" class="toggle-btn" onclick="startGame()">Start Game</button>
-        <button id="case-btn" class="toggle-btn" onclick="toggleCase()" style="display:none;">ABC / abc</button>
-        <button id="music-btn" onclick="toggleMusic()">Music 🎵</button>
-        <button id="parent-btn" onclick="toggleDashboard()">Parent Stats</button>
+        <button id="start-btn" class="btn" onclick="startGame()">Start Game</button>
+        <button id="music-btn" class="btn" onclick="toggleMusic()">Music On/Off</button>
+        <button class="btn reset-btn" onclick="resetProgress()">Reset Everything</button>
     </div>
-
-    <div id="parent-dashboard">
-        <h3>Parent Dashboard</h3>
-        <div>Total correct: <span id="total-correct">0</span></div>
-        <div>Most missed: <span id="most-missed">None yet</span></div>
-        <div>Current mode: <span id="mode-display">Uppercase Names</span></div>
-        <button id="reset-btn" onclick="resetProgress()">Reset Progress</button>
-    </div>
-
-    <div id="minigame-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; text-align:center; padding-top:40px; color:white; font-size:2em;"></div>
 
     <script>
         const synth = window.speechSynthesis;
-        let score = 0;
-        let level = 1;
-        let isLowercase = false;
-        let currentAnswer = '';
-        let totalCorrect = 0;
-        let missCounts = {};
-        let wrongAttempts = 0;
-
-        const stickerEmojis = ['⭐','🦄','🌈','🎈','🚀','🍎','🎉','🐶','🍭','🦋'];
+        let score = 0, totalCorrect = 0, level = 1;
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-        
-        const phonics = {
-            A: 'a as in apple', B: 'b as in ball', C: 'k as in cat', D: 'd as in dog',
-            E: 'e as in elephant', F: 'f as in fish', G: 'g as in goat', H: 'h as in hat',
-            I: 'i as in igloo', J: 'j as in juice', K: 'k as in kite', L: 'l as in lion',
-            M: 'm as in monkey', N: 'n as in nose', O: 'o as in octopus', P: 'p as in pig',
-            Q: 'kw as in queen', R: 'r as in rabbit', S: 's as in sun', T: 't as in tiger',
-            U: 'u as in umbrella', V: 'v as in violin', W: 'w as in whale', X: 'ks as in box',
-            Y: 'y as in yo-yo', Z: 'z as in zebra'
-        };
-
-        const pictures = {
-            A:'🍎 Apple', B:'🐝 Bee', C:'🐱 Cat', D:'🐶 Dog', E:'🐘 Elephant',
-            F:'🐟 Fish', G:'🦒 Giraffe', H:'🏠 House', I:'🍦 Ice cream',
-            J:'🧃 Juice', K:'🪁 Kite', L:'🦁 Lion', M:'🌙 Moon', N:'👃 Nose',
-            O:'🐙 Octopus', P:'🐧 Penguin', Q:'👸 Queen', R:'🌈 Rainbow',
-            S:'☀ Sun', T:'🐯 Tiger', U:'☂ Umbrella', V:'🎻 Violin',
-            W:'🐋 Whale', X:'🎹 Xylophone', Y:'🪀 Yo-yo', Z:'🦓 Zebra'
-        };
+        const pictures = { A:'🍎', B:'🐝', C:'🐱', D:'🐶', E:'🐘', F:'🐟', G:'🦒', H:'🏠', I:'🍦', J:'🧃', K:'🪁', L:'🦁', M:'🌙', N:'👃', O:'🐙', P:'🐧', Q:'👸', R:'🌈', S:'☀', T:'🐯', U:'☂', V:'🎻', W:'🐋', X:'🎹', Y:'🪀', Z:'🦓' };
 
         function loadProgress() {
             score = parseInt(localStorage.getItem('alphaScore')) || 0;
             totalCorrect = parseInt(localStorage.getItem('alphaTotal')) || 0;
             level = parseInt(localStorage.getItem('alphaLevel')) || 1;
-            missCounts = JSON.parse(localStorage.getItem('alphaMiss')) || {};
             updateUI();
-        }
-
-        function saveProgress() {
-            localStorage.setItem('alphaScore', score);
-            localStorage.setItem('alphaTotal', totalCorrect);
-            localStorage.setItem('alphaLevel', level);
-            localStorage.setItem('alphaMiss', JSON.stringify(missCounts));
         }
 
         function updateUI() {
             document.getElementById('sticker-count').innerText = score;
-            document.getElementById('total-correct').innerText = totalCorrect;
             document.getElementById('level-display').innerText = level;
-            document.getElementById('stickers').innerText = stickerEmojis.slice(0, score % 10).join('');
-            
-            const percent = (totalCorrect % 10) * 10;
-            document.getElementById('progress-fill').style.width = percent + '%';
-
-            let modeText = (isLowercase ? 'Lowercase ' : 'Uppercase ') + (level === 1 ? 'Names' : level === 2 ? 'Phonics' : 'Pictures');
-            document.getElementById('mode-display').innerText = modeText;
-
-            let mostMissed = Object.keys(missCounts).length 
-                ? Object.entries(missCounts).sort((a,b)=>b[1]-a[1])[0][0] 
-                : 'None yet';
-            document.getElementById('most-missed').innerText = mostMissed === 'None yet' ? 'None yet' : `${mostMissed} (${missCounts[mostMissed]} misses)`;
+            document.getElementById('stickers').innerText = '⭐'.repeat(score % 10);
+            document.getElementById('progress-fill').style.width = (totalCorrect % 10) * 10 + '%';
         }
 
         function speak(text) {
             synth.cancel();
             const utter = new SpeechSynthesisUtterance(text);
-            utter.rate = 0.9;
-            utter.pitch = 1.2;
             synth.speak(utter);
         }
 
         function startGame() {
             document.getElementById('start-btn').style.display = 'none';
-            document.getElementById('case-btn').style.display = 'inline-block';
             nextQuestion();
-        }
-
-        function toggleCase() {
-            isLowercase = !isLowercase;
-            document.getElementById('case-btn').innerText = isLowercase ? 'abc → ABC' : 'ABC → abc';
-            nextQuestion();
-        }
-
-        function toggleMusic() {
-            const bgm = document.getElementById('bgm');
-            bgm.paused ? bgm.play() : bgm.pause();
         }
 
         function nextQuestion() {
-            wrongAttempts = 0;
-            currentAnswer = alphabet[Math.floor(Math.random() * alphabet.length)];
+            let currentAnswer = alphabet[Math.floor(Math.random() * alphabet.length)];
+            window.currentAnswer = currentAnswer;
+            
             let options = [currentAnswer];
             while(options.length < 3) {
                 let rand = alphabet[Math.floor(Math.random() * alphabet.length)];
@@ -185,56 +106,42 @@
             }
             options.sort(() => Math.random() - 0.5);
 
-            const displayOptions = options.map(l => isLowercase ? l.toLowerCase() : l);
-            const promptEl = document.getElementById('prompt');
-            const picEl = document.getElementById('picture');
-
-            if(level === 1) {
-                promptEl.innerText = 'Find the letter:';
-                picEl.innerText = isLowercase ? currentAnswer.toLowerCase() : currentAnswer;
-                speak(`Find the letter ${currentAnswer}`);
-            } else if(level === 2) {
-                promptEl.innerText = 'What makes this sound?';
-                picEl.innerText = '👂';
-                speak(`Which letter makes the sound ${phonics[currentAnswer]}?`);
-            } else {
-                promptEl.innerText = 'What does this start with?';
-                picEl.innerText = pictures[currentAnswer].split(' ')[0];
-                speak(`${pictures[currentAnswer]}. What letter does it start with?`);
-            }
+            document.getElementById('prompt').innerText = 'Find the letter:';
+            document.getElementById('picture').innerText = pictures[currentAnswer];
+            speak(`Find the letter ${currentAnswer}`);
 
             const lettersDiv = document.getElementById('letters');
             lettersDiv.innerHTML = '';
-            displayOptions.forEach(letter => {
+            options.forEach(letter => {
                 const btn = document.createElement('button');
                 btn.className = 'letter-btn';
                 btn.innerText = letter;
-                btn.onclick = () => checkAnswer(letter.toUpperCase(), btn);
+                btn.onclick = () => checkAnswer(letter, btn);
                 lettersDiv.appendChild(btn);
             });
         }
 
         function checkAnswer(selected, btn) {
-            if(selected === currentAnswer) {
+            if(selected === window.currentAnswer) {
                 btn.classList.add('correct');
                 score++; totalCorrect++;
                 document.getElementById('sfx-correct').play();
-                speak('Great job!');
                 spawnConfetti();
                 
-                if(totalCorrect % 10 === 0 && level < 3) {
+                if(totalCorrect % 10 === 0) {
                     level++;
-                    setTimeout(() => speak("Level Up! You're doing amazing!"), 600);
+                    speak("Level Up! You got a sticker!");
                 }
                 
-                saveProgress(); updateUI();
+                localStorage.setItem('alphaScore', score);
+                localStorage.setItem('alphaTotal', totalCorrect);
+                localStorage.setItem('alphaLevel', level);
+                updateUI();
                 setTimeout(nextQuestion, 1500);
             } else {
                 btn.classList.add('wrong');
                 document.getElementById('sfx-wrong').play();
-                missCounts[currentAnswer] = (missCounts[currentAnswer] || 0) + 1;
-                speak(`Not quite! That starts with ${phonics[currentAnswer]}`);
-                saveProgress(); updateUI();
+                speak("Try again!");
                 setTimeout(() => btn.classList.remove('wrong'), 500);
             }
         }
@@ -250,14 +157,13 @@
             }
         }
 
-        function toggleDashboard() {
-            const dash = document.getElementById('parent-dashboard');
-            dash.style.display = dash.style.display === 'none' ? 'block' : 'none';
-            updateUI();
+        function toggleMusic() {
+            const bgm = document.getElementById('bgm');
+            bgm.paused ? bgm.play() : bgm.pause();
         }
 
         function resetProgress() {
-            if(confirm('Reset all progress?')) {
+            if(confirm('Start from the very beginning?')) {
                 localStorage.clear();
                 location.reload();
             }
