@@ -110,3 +110,233 @@
     background:rgba(0,0,0,0.7); z-index:9999; text-align:center; padding-top:40px;
     color:white; font-size:2em;">
   </div>
+const synth = window.speechSynthesis;
+let score = 0;
+let level = 1;
+let isLowercase = false;
+let currentAnswer = '';
+let totalCorrect = 0;
+let missCounts = {};
+let wrongAttempts = 0;
+
+const stickerEmojis = ['⭐','🦄','🌈','🎈','🚀','🍎','🎉','🐶','🍭','🦋'];
+const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+// Improved phonics
+const phonics = {
+  A: 'a as in apple',
+  B: 'b as in ball',
+  C: 'k as in cat',
+  D: 'd as in dog',
+  E: 'e as in elephant',
+  F: 'f as in fish',
+  G: 'g as in goat',
+  H: 'h as in hat',
+  I: 'i as in igloo',
+  J: 'j as in juice',
+  K: 'k as in kite',
+  L: 'l as in lion',
+  M: 'm as in monkey',
+  N: 'n as in nose',
+  O: 'o as in octopus',
+  P: 'p as in pig',
+  Q: 'kw as in queen',
+  R: 'r as in rabbit',
+  S: 's as in sun',
+  T: 't as in tiger',
+  U: 'u as in umbrella',
+  V: 'v as in violin',
+  W: 'w as in whale',
+  X: 'ks as in box',
+  Y: 'y as in yo-yo',
+  Z: 'z as in zebra'
+};
+
+const pictures = {
+  A:'🍎 Apple', B:'🐝 Bee', C:'🐱 Cat', D:'🐶 Dog', E:'🐘 Elephant',
+  F:'🐟 Fish', G:'🦒 Giraffe', H:'🏠 House', I:'🍦 Ice cream',
+  J:'🧃 Juice', K:'🪁 Kite', L:'🦁 Lion', M:'🌙 Moon', N:'👃 Nose',
+  O:'🐙 Octopus', P:'🐧 Penguin', Q:'👸 Queen', R:'🌈 Rainbow',
+  S:'☀️ Sun', T:'🐯 Tiger', U:'☂️ Umbrella', V:'🎻 Violin',
+  W:'🐋 Whale', X:'🎁 Xylophone', Y:'🪀 Yo-yo', Z:'🦓 Zebra'
+};
+
+function loadProgress() {
+  score = parseInt(localStorage.getItem('alphaScore')) || 0;
+  totalCorrect = parseInt(localStorage.getItem('alphaTotal')) || 0;
+  level = parseInt(localStorage.getItem('alphaLevel')) || 1;
+  missCounts = JSON.parse(localStorage.getItem('alphaMiss')) || {};
+  updateUI();
+}
+
+function saveProgress() {
+  localStorage.setItem('alphaScore', score);
+  localStorage.setItem('alphaTotal', totalCorrect);
+  localStorage.setItem('alphaLevel', level);
+  localStorage.setItem('alphaMiss', JSON.stringify(missCounts));
+}
+
+function updateProgressBar() {
+  const percent = (totalCorrect % 10) * 10;
+  document.getElementById('progress-fill').style.width = percent + '%';
+}
+
+function updateUI() {
+  document.getElementById('sticker-count').innerText = score;
+  document.getElementById('total-correct').innerText = totalCorrect;
+  document.getElementById('level-display').innerText = level;
+  document.getElementById('stickers').innerText = stickerEmojis.slice(0, score % 10).join('');
+
+  updateProgressBar();
+
+  let modeText = level === 1 ? 'Names' : level === 2 ? 'Phonics' : 'Pictures';
+  modeText = (isLowercase ? 'Lowercase ' : 'Uppercase ') + modeText;
+  document.getElementById('mode-display').innerText = modeText;
+
+  let mostMissed = Object.keys(missCounts).length
+    ? Object.entries(missCounts).sort((a,b)=>b[1]-a[1])[0][0]
+    : 'None yet';
+
+  document.getElementById('most-missed').innerText =
+    mostMissed === 'None yet' ? 'None yet' : `${mostMissed} - ${missCounts[mostMissed]} misses`;
+}
+
+function speak(text) {
+  synth.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.9;
+  utter.pitch = 1.3;
+  synth.speak(utter);
+}
+
+function startGame() {
+  document.getElementById('start-btn').style.display = 'none';
+  document.getElementById('case-btn').style.display = 'inline-block';
+  nextQuestion();
+}
+
+function toggleCase() {
+  isLowercase = !isLowercase;
+  document.getElementById('case-btn').innerText = isLowercase ? 'abc → ABC' : 'ABC → abc';
+  nextQuestion();
+  updateUI();
+}
+
+function toggleMusic() {
+  const bgm = document.getElementById('bgm');
+  if (bgm.paused) bgm.play();
+  else bgm.pause();
+}
+
+function nextQuestion() {
+  wrongAttempts = 0;
+
+  currentAnswer = alphabet[Math.floor(Math.random() * alphabet.length)];
+  let options = [currentAnswer];
+
+  while (options.length < 3) {
+    let rand = alphabet[Math.floor(Math.random() * alphabet.length)];
+    if (!options.includes(rand)) options.push(rand);
+  }
+
+  options.sort(() => Math.random() - 0.5);
+
+  const displayOptions = options.map(l => isLowercase ? l.toLowerCase() : l);
+
+  if (level === 1) {
+    document.getElementById('prompt').innerText = 'Find the letter:';
+    document.getElementById('picture').innerText = '';
+    speak(`Find the letter ${currentAnswer}`);
+  } else if (level === 2) {
+    document.getElementById('prompt').innerText = 'What makes this sound?';
+    document.getElementById('picture').innerText = '';
+    speak(`What letter makes the sound: ${phonics[currentAnswer]}. Listen again: ${phonics[currentAnswer]}`);
+  } else {
+    document.getElementById('prompt').innerText = 'What letter does this start with?';
+    document.getElementById('picture').innerText = pictures[currentAnswer].split(' ')[0];
+    speak(`${pictures[currentAnswer]}. It starts with ${currentAnswer}`);
+  }
+
+  const lettersDiv = document.getElementById('letters');
+  lettersDiv.innerHTML = '';
+
+  displayOptions.forEach(letter => {
+    const btn = document.createElement('button');
+    btn.className = 'letter-btn';
+    btn.innerText = letter;
+    btn.onclick = () => checkAnswer(letter.toUpperCase(), btn);
+    lettersDiv.appendChild(btn);
+  });
+}
+
+function spawnConfetti() {
+  for (let i = 0; i < 20; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.background = ['#ff0','#f0f','#0ff','#0f0','#f00'][Math.floor(Math.random()*5)];
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 1500);
+  }
+}
+
+function checkAnswer(selected, btn) {
+  if (selected === currentAnswer) {
+    btn.classList.add('correct');
+    score++; totalCorrect++;
+
+    document.getElementById('sfx-correct').play();
+    speak(['Great job!', 'Super star!', 'Amazing!', 'You’re on fire!'][Math.floor(Math.random()*4)]);
+    spawnConfetti();
+
+    // Level up logic
+    if (totalCorrect % 10 === 0 && level < 3) {
+      level++;
+      setTimeout(() => {
+        speak(level === 2 ? 'Level up! Now listen to the sounds!' : 'Level up! Now match the pictures!');
+      }, 500);
+    }
+
+    saveProgress(); updateUI();
+
+    // Mini-game trigger (Option 2)
+    if (totalCorrect % 10 === 0) {
+      setTimeout(() => startRandomMiniGame(), 1200);
+      return;
+    }
+
+    setTimeout(nextQuestion, 1500);
+
+  } else {
+    btn.classList.add('wrong');
+    document.getElementById('sfx-wrong').play();
+
+    wrongAttempts++;
+    missCounts[currentAnswer] = (missCounts[currentAnswer] || 0) + 1;
+
+    if (wrongAttempts === 2) {
+      speak(`Here’s a hint. It starts with the sound ${phonics[currentAnswer]}`);
+    } else {
+      speak(`Oops, try again. Listen: ${phonics[currentAnswer]}`);
+    }
+
+    saveProgress(); updateUI();
+    setTimeout(() => btn.classList.remove('wrong'), 500);
+  }
+}
+
+function toggleDashboard() {
+  const dash = document.getElementById('parent-dashboard');
+  dash.style.display = dash.style.display === 'none' ? 'block' : 'none';
+  updateUI();
+}
+
+function resetProgress() {
+  if (confirm('Reset all stickers and stats?')) {
+    localStorage.clear();
+    score = 0; totalCorrect = 0; level = 1; missCounts = {};
+    location.reload();
+  }
+}
+
+loadProgress();
